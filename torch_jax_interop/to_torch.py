@@ -9,7 +9,6 @@ from typing import Any, Callable, overload
 
 import jax
 import torch
-from jax.dlpack import to_dlpack as jax_to_dlpack  # type: ignore (not exported there?)
 from torch.utils import dlpack as torch_dlpack
 
 from .types import Dataclass, DataclassType, K, NestedDict, NestedMapping
@@ -84,11 +83,12 @@ def no_op(v: Any) -> Any:
 
 
 def jax_to_torch_tensor(value: jax.Array, /) -> torch.Tensor:
-    """Converts a Jax array into a torch.Tensor."""
-    try:
-        return torch_dlpack.from_dlpack(value)
-    except Exception:
-        return torch_dlpack.from_dlpack(jax_to_dlpack(value))
+    """Converts a Jax array into a torch.Tensor.
+
+    Uses the newer DLPack API - JAX arrays can be passed directly to
+    torch.utils.dlpack.from_dlpack via the __dlpack__ protocol.
+    """
+    return torch_dlpack.from_dlpack(value)
 
 
 # Register it like this so the type hints are preserved on the functions (which are also called

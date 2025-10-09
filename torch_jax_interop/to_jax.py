@@ -1,23 +1,19 @@
 from __future__ import annotations
 
 import collections.abc
-import contextlib
 import dataclasses
 import functools
 import logging
-import warnings
 from logging import getLogger as get_logger
 from typing import Any, Callable, overload
 
 import jax
 import jax.core
-import jaxlib
-import jaxlib.xla_extension
+import jax.errors
 import torch
 import torch.func
 import torch.utils._pytree
 from jax.dlpack import from_dlpack as jax_from_dlpack  # type: ignore
-from torch.utils.dlpack import to_dlpack as torch_to_dlpack  # type: ignore
 
 from .types import (
     Dataclass,
@@ -93,20 +89,10 @@ def _direct_conversion(v: torch.Tensor) -> jax.Array:
     return jax_from_dlpack(v, copy=False)
 
 
-def _to_from_dlpack(
-    v: torch.Tensor, ignore_deprecation_warning: bool = True
-) -> jax.Array:
-    with (
-        warnings.catch_warnings()
-        if ignore_deprecation_warning
-        else contextlib.nullcontext()
-    ):
-        # Only way to get this to work for CPU seems to be with to/from dlpack... so we have to use this deprecated
-        # conversion method for now.
-        # todo: Should we let it though though?
-        if ignore_deprecation_warning:
-            warnings.filterwarnings("ignore", category=DeprecationWarning)
-        return jax_from_dlpack(torch_to_dlpack(v), copy=False)
+def _to_from_dlpack(v: torch.Tensor) -> jax.Array:
+    # Use the newer DLPack API - PyTorch tensors can be passed directly to jax.dlpack.from_dlpack
+    # via the __dlpack__ protocol, without needing torch.utils.dlpack.to_dlpack
+    return jax_from_dlpack(v, copy=False)
 
 
 def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
@@ -126,9 +112,9 @@ def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
             # todo: Calling jax_from_dlpack with a cpu tensor causes issues in jax pure callbacks **later**,
             # when they are run by jax somehow. This causes issues when using a nn.Module in jax graph.
             # return _direct_conversion(value)
-            return _to_from_dlpack(value, ignore_deprecation_warning=True)
+            return _to_from_dlpack(value)
 
-        except jaxlib.xla_extension.XlaRuntimeError as err:
+        except jax.errors.JaxRuntimeError as err:
             log_once(
                 logger,
                 message=(
@@ -150,11 +136,10 @@ def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
         if not err.args[0].startswith("Unexpected XLA layout override"):
             raise
         # Some "AssertionError: Unexpected XLA layout override"
-        # Try using the "old" way to convert using from_dlpack of a dlpack tensor.
+        # Try using the DLPack protocol directly without explicit to_dlpack conversion
         try:
-            dlpack = torch_to_dlpack(value)
-            return jax_from_dlpack(dlpack, copy=False)
-        except jaxlib.xla_extension.XlaRuntimeError as err:
+            return jax_from_dlpack(value, copy=False)
+        except jax.errors.JaxRuntimeError as err:
             log_once(
                 logger,
                 message=(
@@ -165,7 +150,7 @@ def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
                 ),
                 level=logging.WARNING,
             )
-    except jaxlib.xla_extension.XlaRuntimeError as err:
+    except jax.errors.JaxRuntimeError as err:
         log_once(
             logger,
             message=(
