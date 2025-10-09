@@ -162,7 +162,7 @@ def torch_module_to_jax(
         if any(isinstance(v_i, jax.core.Tracer) for v_i in jax.tree.leaves(v)):
             # running inside JIT.
             return jax.pure_callback(
-                functools.partial(jax.tree.map, jax_to_torch), v, v, vectorized=True
+                functools.partial(jax.tree.map, jax_to_torch), v, v, vmap_method='legacy_vectorized'
             )
         return jax.tree.map(jax_to_torch, v)
 
@@ -170,7 +170,7 @@ def torch_module_to_jax(
         if any(isinstance(v_i, jax.core.Tracer) for v_i in jax.tree.leaves(v)):
             # running inside JIT.
             return jax.pure_callback(
-                functools.partial(jax.tree.map, torch_to_jax), v, v, vectorized=True
+                functools.partial(jax.tree.map, torch_to_jax), v, v, vmap_method='legacy_vectorized'
             )
         return jax.tree.map(torch_to_jax, v)
 
@@ -219,7 +219,7 @@ def torch_module_to_jax(
             params,
             *args,
             **kwargs,
-            vectorized=True,
+            vmap_method='legacy_vectorized',
         )
         # Convert the output data from JAX to PyTorch representations
         out = t2j(out)
@@ -257,7 +257,7 @@ def torch_module_to_jax(
                 grads,
                 *args,
                 **kwargs,
-                vectorized=True,
+                vmap_method='legacy_vectorized',
             )
             in_grads = t2j(in_grads)
             return in_grads

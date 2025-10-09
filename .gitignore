@@ -167,3 +167,7 @@ cython_debug/
 
 # Ignore tensor regression files.
 *.npz
+
+# Tests
+torch_jax_interop/to_jax_test/
+torch_jax_interop/to_torch_module_test/
