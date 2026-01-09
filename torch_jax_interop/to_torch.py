@@ -82,8 +82,10 @@ def jax_to_torch_tensor(value: jax.Array, /) -> torch.Tensor:
     Uses the newer DLPack API - JAX arrays can be passed directly to
     torch.utils.dlpack.from_dlpack via the __dlpack__ protocol.
     """
-    return torch_dlpack.from_dlpack(value)
-
+    try:
+        return torch_dlpack.from_dlpack(value)
+    except Exception:
+        return torch_dlpack.from_dlpack(value.__dlpack__())
 
 # Register it like this so the type hints are preserved on the functions (which are also called
 # directly in some places).
