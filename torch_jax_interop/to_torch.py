@@ -87,6 +87,7 @@ def jax_to_torch_tensor(value: jax.Array, /) -> torch.Tensor:
     except Exception:
         return torch_dlpack.from_dlpack(value.__dlpack__())
 
+
 # Register it like this so the type hints are preserved on the functions (which are also called
 # directly in some places).
 jax_to_torch.register(jax.Array, jax_to_torch_tensor)

@@ -15,13 +15,13 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: "latest"
-          enable-cache: true # no need, uses the local uv cache.
+          enable-cache: true  # no need, uses the local uv cache.
           # https://github.com/astral-sh/setup-uv?tab=readme-ov-file#github-authentication-token
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-suffix: "3.12"
+          cache-suffix: "3.13"
 
       - name: Pin python-version
-        run: uv python pin 3.12
+        run: uv python pin 3.13
 
       - name: Install dependencies
         run: uv sync --extra docs --frozen

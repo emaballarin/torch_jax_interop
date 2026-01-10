@@ -11,7 +11,6 @@ def log_once(logger: logging.Logger, message: str, level: int):
     logger.log(level=level, msg=message, stacklevel=2)
 
 
-# NOTE: Done like this to preserve the original function signature.
 log_once = functools.cache(log_once)
 
 
