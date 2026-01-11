@@ -57,7 +57,7 @@ def make_functional(
 
 def torch_module_to_jax(
     model: Module[..., torch.Tensor], example_output: torch.Tensor | None = None
-) -> tuple[jax.custom_vjp[jax.Array], tuple[jax.Array, ...]]:
+) -> tuple[Callable[..., jax.Array], tuple[jax.Array, ...]]:
     """Wrap a pytorch model to be used in a jax computation.
 
     Copied and adapted from https://github.com/subho406/pytorch2jax/blob/main/pytorch2jax/pytorch2jax.py#L32
@@ -248,8 +248,8 @@ def torch_module_to_jax(
                 torch_in_grads = torch_jvp_fn(torch_grads)
                 return torch_in_grads
 
-            # todo: this seems to depend on the model_fn used. Need to
-            result_shape_dtypes = (params, args[0])
+            # Build result shape that matches vjp output: gradients for params and all args
+            result_shape_dtypes = (params,) + tuple(args) if args else (params,)
             in_grads = jax.pure_callback(
                 _pytorch_model_backward_callback,
                 result_shape_dtypes,

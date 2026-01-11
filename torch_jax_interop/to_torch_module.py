@@ -25,7 +25,7 @@ from .utils import log_once
 
 logger = get_logger(__name__)
 # todo: make it possible to have different out type than just a single tensor/array.
-Out = jax.Array
+_JaxArrayOut = jax.Array
 
 
 class WrappedJaxFunction(torch.nn.Module):
@@ -172,7 +172,11 @@ class WrappedJaxFunction(torch.nn.Module):
             *flat_inputs,
             *self.params,
         )
-        assert isinstance(outputs, tuple) and len(outputs) == 3
+        if not isinstance(outputs, tuple) or len(outputs) != 3:
+            raise TypeError(
+                f"Expected _JaxFunction.apply to return a tuple of 3 elements, "
+                f"got {type(outputs).__name__} with {len(outputs) if isinstance(outputs, tuple) else 'N/A'} elements"
+            )
         output, _jvp_fn, aux = outputs
         if self.has_aux:
             return output, aux
@@ -306,7 +310,7 @@ class WrappedJaxScalarFunction(WrappedJaxFunction):
                 value_and_grad(
                     self.jax_function,
                     argnums=argnums,
-                    has_aux=True,
+                    has_aux=self.has_aux,
                 )
             )
             self._value_and_grad_fns[key] = value_and_grad_fn
@@ -339,8 +343,8 @@ class _JaxFunction(torch.autograd.Function, Generic[Params]):
 
     @staticmethod
     def forward(
-        jax_function: Callable[[Params, In], Out]
-        | Callable[[Params, In], tuple[Out, Aux]],
+        jax_function: Callable[[Params, In], _JaxArrayOut]
+        | Callable[[Params, In], tuple[_JaxArrayOut, Aux]],
         inputs_treedef: PyTreeDef,
         params_treedef: PyTreeDef,
         has_aux: bool,
@@ -359,7 +363,7 @@ class _JaxFunction(torch.autograd.Function, Generic[Params]):
         # todo: support multiple outputs and/or `has_aux=True`.
         if has_aux:
             jax_function_with_aux = typing.cast(
-                Callable[[Params, In], tuple[Out, Aux]], jax_function
+                Callable[[Params, In], tuple[_JaxArrayOut, Aux]], jax_function
             )
             output, jvp_function, aux = jax.vjp(
                 jax_function_with_aux, jax_params, *jax_inputs, has_aux=has_aux
@@ -614,8 +618,17 @@ class _JaxScalarFunction(torch.autograd.Function, Generic[Params]):
         grad_output: torch.Tensor,
         _grad_aux: Any,
     ):
-        assert not grad_output.shape
-        assert (grad_output == torch.ones_like(grad_output)).all()
+        # Verify scalar output and unit gradient (expected for scalar loss functions)
+        if grad_output.shape:
+            raise ValueError(
+                f"_JaxScalarFunction expects scalar output but got gradient with shape {grad_output.shape}. "
+                f"Use WrappedJaxFunction for non-scalar outputs."
+            )
+        if not (grad_output == torch.ones_like(grad_output)).all():
+            raise ValueError(
+                f"_JaxScalarFunction expects unit gradient but got {grad_output.item()}. "
+                f"This typically indicates incorrect usage of the scalar function wrapper."
+            )
 
         # The gradients have already been computed with `value_and_grad`, so here we
         # just return them from ctx.saved_tensors depending on `ctx.needs_input_grad`.

@@ -167,3 +167,6 @@ cython_debug/
 
 # Ignore tensor regression files.
 *.npz
+
+# Claude
+.claude/

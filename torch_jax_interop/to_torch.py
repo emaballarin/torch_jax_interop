@@ -65,14 +65,14 @@ def jax_to_torch(value: Any, /) -> Any:
 jax_to_torch = functools.singledispatch(jax_to_torch)  # type: ignore
 
 
-# Keep `None`s the same.
 @jax_to_torch.register(type(None))
 @jax_to_torch.register(int)
 @jax_to_torch.register(float)
 @jax_to_torch.register(str)
 @jax_to_torch.register(bool)
 @jax_to_torch.register(bytes)
-def no_op(v: Any) -> Any:
+def _passthrough_primitive(v: Any) -> Any:
+    """Pass through primitive types without conversion."""
     return v
 
 
@@ -84,7 +84,8 @@ def jax_to_torch_tensor(value: jax.Array, /) -> torch.Tensor:
     """
     try:
         return torch_dlpack.from_dlpack(value)
-    except Exception:
+    except (TypeError, BufferError, RuntimeError):
+        # Fallback to explicit __dlpack__ protocol if direct conversion fails
         return torch_dlpack.from_dlpack(value.__dlpack__())
 
 
@@ -105,9 +106,9 @@ def jax_to_torch_list(value: list) -> list:
 
 @jax_to_torch.register(collections.abc.Mapping)
 def jax_to_torch_mapping(
-    value: NestedMapping[str, jax.Array | Any],
-) -> NestedMapping[str, torch.Tensor | Any]:
-    """Converts a dict of Jax arrays into a dict of PyTorch tensors ."""
+    value: NestedMapping[K, jax.Array | Any],
+) -> NestedMapping[K, torch.Tensor | Any]:
+    """Converts a dict of Jax arrays into a dict of PyTorch tensors."""
     return type(value)(**{k: jax_to_torch(v) for k, v in value.items()})  # type: ignore
 
 
@@ -119,11 +120,11 @@ def jax_to_torch_dataclass(value: DataclassType) -> DataclassType:
 
 @jax_to_torch.register(jax.Device)
 def jax_to_torch_device(jax_device: jax.Device) -> torch.device:
-    jax_device_str = str(jax_device)
-    if jax_device_str.startswith("cuda"):
-        device_type, _, index = jax_device_str.partition(":")
-        assert index.isdigit()
-        return torch.device(device_type, int(index))
+    # Use JAX device properties instead of parsing string representation
+    platform = jax_device.platform
+    if platform == "gpu":
+        return torch.device("cuda", jax_device.id)
+    # CPU and TPU map to CPU in PyTorch
     return torch.device("cpu")
 
 

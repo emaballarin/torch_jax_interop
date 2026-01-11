@@ -36,8 +36,8 @@ Aux = TypeVar("Aux")
 NestedDict = dict[K, V | "NestedDict[K, V]"]
 NestedMapping = Mapping[K, V | "NestedMapping[K, V]"]
 
-T = TypeVar("T")
-PyTree = T | tuple["PyTree[T]", ...] | list["PyTree[T]"] | dict[Any, "PyTree[T]"]
+_T = TypeVar("_T")
+PyTree = _T | tuple["PyTree[_T]", ...] | list["PyTree[_T]"] | dict[Any, "PyTree[_T]"]
 
 Scalar = float | int | bool
 JaxPyTree = (
@@ -59,8 +59,6 @@ Params = TypeVar("Params", bound=JaxPyTree)
 
 T = TypeVar("T", jax.Array, torch.Tensor)
 
-
-P = ParamSpec("P")
 Out_cov = TypeVar("Out_cov", covariant=True)
 
 
@@ -73,7 +71,7 @@ class Module(Protocol[P, Out_cov]):
 
     if typing.TYPE_CHECKING:
         # note: Only define this for typing purposes so that we don't actually override anything.
-        def __call__(self, *args: P.args, **kwagrs: P.kwargs) -> Out_cov:
+        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Out_cov:
             ...
 
         modules = torch.nn.Module.modules
@@ -148,7 +146,6 @@ def jit(fn: Callable[P, Out]) -> Callable[P, Out]:
 
 
 In = TypeVar("In")
-Aux = TypeVar("Aux")
 In2 = TypeVar("In2")
 In3 = TypeVar("In3")
 Ts = TypeVarTuple("Ts")

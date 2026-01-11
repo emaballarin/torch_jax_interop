@@ -81,7 +81,8 @@ torch_to_jax = functools.singledispatch(torch_to_jax)  # type: ignore
 @torch_to_jax.register(str)
 @torch_to_jax.register(bool)
 @torch_to_jax.register(bytes)
-def no_op(v: Any) -> Any:
+def _passthrough_primitive(v: Any) -> Any:
+    """Pass through primitive types without conversion."""
     return v
 
 
@@ -98,34 +99,36 @@ def _to_from_dlpack(v: torch.Tensor) -> jax.Array:
 def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
     """Converts a PyTorch Tensor into a jax.Array.
 
-    NOTE: seems like torch.float64 tensors are implicitly converted to jax.float32 tensors?
-    TODO:
-    - If the tensor is on the GPU, then we can use the direct conversion with jax from_dlpack.
-      Otherwise we might have to convert to/from dlpack, which is apparently being deprecated.
-        - ALSO: this seems to happen when jitted code is calling a pure callback. Not sure if it happens in other cases too
-        (e.g. just calling this with a jax tensor in non-jit mode).
+    NOTE: torch.float64 tensors may be implicitly converted to jax.float32 tensors.
     """
     value = value.detach()
 
+    # Ensure tensor is contiguous for DLPack compatibility
+    if not value.is_contiguous():
+        log_once(
+            logger,
+            message=(
+                f"Tensor of shape {tuple(value.shape)} is not contiguous. "
+                f"Making a contiguous copy for DLPack conversion."
+            ),
+            level=logging.DEBUG,
+        )
+        value = value.contiguous()
+
     if value.device.type == "cpu":
         try:
-            # todo: Calling jax_from_dlpack with a cpu tensor causes issues in jax pure callbacks **later**,
-            # when they are run by jax somehow. This causes issues when using a nn.Module in jax graph.
-            # return _direct_conversion(value)
             return _to_from_dlpack(value)
-
         except jax.errors.JaxRuntimeError as err:
             log_once(
                 logger,
                 message=(
-                    f"Unable to view tensor of shape {tuple(value.shape)} as a jax.Array in-place:\n"
-                    f"'{err}'\n"
-                    f"Tensors of this shape will be flattened and unflattened (which may or "
-                    f"may not involve making a copy of the tensor's data)."
+                    f"Unable to convert CPU tensor of shape {tuple(value.shape)} "
+                    f"to jax.Array via DLPack: '{err}'"
                 ),
                 level=logging.WARNING,
             )
-            return _direct_conversion(value.flatten()).reshape(value.shape)
+            # Fallback: try direct conversion
+            return _direct_conversion(value)
 
     try:
         # Try using the "new" way to convert using from_dlpack directly
@@ -136,36 +139,29 @@ def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
         if not err.args[0].startswith("Unexpected XLA layout override"):
             raise
         # Some "AssertionError: Unexpected XLA layout override"
-        # Try using the DLPack protocol directly without explicit to_dlpack conversion
+        # Try using the DLPack protocol directly without explicit device
         try:
             return jax_from_dlpack(value, copy=False)
         except jax.errors.JaxRuntimeError as err:
             log_once(
                 logger,
                 message=(
-                    f"Unable to view tensor of shape {tuple(value.shape)} as a jax.Array in-place:\n"
-                    f"'{err}'\n"
-                    f"Tensors of this shape will be flattened and unflattened (which may or "
-                    f"may not involve making a copy of the tensor's data)."
+                    f"Unable to convert GPU tensor of shape {tuple(value.shape)} "
+                    f"to jax.Array via DLPack: '{err}'"
                 ),
                 level=logging.WARNING,
             )
+            return _direct_conversion(value)
     except jax.errors.JaxRuntimeError as err:
         log_once(
             logger,
             message=(
-                f"Unable to view tensor of shape {tuple(value.shape)} as a jax.Array in-place:\n"
-                f"'{err}'\n"
-                f"Tensors of this shape will be flattened and unflattened (which may or "
-                f"may not involve making a copy of the tensor's data)."
+                f"Unable to convert GPU tensor of shape {tuple(value.shape)} "
+                f"to jax.Array via DLPack: '{err}'"
             ),
             level=logging.WARNING,
         )
-        return _direct_conversion(value.flatten()).reshape(value.shape)
-
-    # NOTE: This may or may not involve making a copy of the tensor.
-    # See https://pytorch.org/docs/stable/generated/torch.flatten.html#torch.flatten
-    return torch_to_jax_tensor(value.flatten()).reshape(value.shape)
+        return _direct_conversion(value)
 
 
 # Register it like this so the type hints are preserved on the functions (which are also called
@@ -209,8 +205,9 @@ def torch_to_jax_device(torch_device: torch.device) -> jax.Device:
     if torch_device.type == "cuda":
         return devices[torch_device.index]
     else:
-        torch_device.index
-        return devices[0]
+        # For CPU/TPU, use index if specified, otherwise default to first device
+        index = torch_device.index if torch_device.index is not None else 0
+        return devices[index]
 
 
 @torch_to_jax.register(collections.abc.Callable)
