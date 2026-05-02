@@ -7,11 +7,12 @@
 2. Install this package:
 
 ```console
-uv add torch_jax_interop
+uv add torch-jax-interop
 ```
 
 ## Usage
 
+<!-- prettier-ignore -->
 ::: torch_jax_interop
     options:
         show_submodules: false

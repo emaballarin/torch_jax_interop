@@ -1,78 +1,55 @@
-from __future__ import annotations
-
 import dataclasses
 import functools
 import typing
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    FrozenSet,
-    Literal,
-    Mapping,
-    ParamSpec,
-    Protocol,
-    Sequence,
-    TypeGuard,
-    TypeVar,
-    overload,
-    runtime_checkable,
-)
+from collections.abc import Callable
+from collections.abc import Mapping
+from collections.abc import Sequence
+from typing import Any
+from typing import ClassVar
+from typing import Literal
+from typing import overload
+from typing import ParamSpec
+from typing import Protocol
+from typing import runtime_checkable
+from typing import TypeGuard
+from typing import TypeVar
 
 import chex
-import jax
-import jax.experimental
 import jax.experimental.checkify
 import torch
-from typing_extensions import TypeVarTuple, Unpack
 
 K = TypeVar("K")
 V = TypeVar("V")
-C = TypeVar("C", bound=Callable)
-Out = TypeVar("Out")
-P = ParamSpec("P")
 Aux = TypeVar("Aux")
+In = TypeVar("In")
+P = ParamSpec("P")
+Out_cov_co = TypeVar("Out_cov_co", covariant=True)
 
-NestedDict = dict[K, V | "NestedDict[K, V]"]
-NestedMapping = Mapping[K, V | "NestedMapping[K, V]"]
 
-_T = TypeVar("_T")
-PyTree = _T | tuple["PyTree[_T]", ...] | list["PyTree[_T]"] | dict[Any, "PyTree[_T]"]
+type NestedDict[K, V] = dict[K, V | NestedDict[K, V]]
+type NestedMapping[K, V] = Mapping[K, V | NestedMapping[K, V]]
 
-Scalar = float | int | bool
-JaxPyTree = (
-    Scalar
-    | jax.Array
-    | tuple["JaxPyTree", ...]
-    | list["JaxPyTree"]
-    | Mapping[Any, "JaxPyTree"]
-)
-TorchPyTree = (
-    Scalar
-    | torch.Tensor
-    | tuple["TorchPyTree", ...]
-    | list["TorchPyTree"]
-    | Mapping[Any, "TorchPyTree"]
-)
+type PyTree[T] = T | tuple[PyTree[T], ...] | list[PyTree[T]] | dict[Any, PyTree[T]]
+
+type Scalar = float | int | bool
+type JaxPyTree = Scalar | jax.Array | tuple[JaxPyTree, ...] | list[JaxPyTree] | Mapping[Any, JaxPyTree]
+type TorchPyTree = Scalar | torch.Tensor | tuple[TorchPyTree, ...] | list[TorchPyTree] | Mapping[Any, TorchPyTree]
 Params = TypeVar("Params", bound=JaxPyTree)
 
 
 T = TypeVar("T", jax.Array, torch.Tensor)
 
-Out_cov = TypeVar("Out_cov", covariant=True)
-
 
 @runtime_checkable
-class Module(Protocol[P, Out_cov]):
+class Module(Protocol[P, Out_cov_co]):
     """Protocol for a torch.nn.Module that gives better type hints for the `__call__` method."""
 
-    def forward(self, *args: P.args, **kwargs: P.kwargs) -> Out_cov:
+    def forward(self, *args: P.args, **kwargs: P.kwargs) -> Out_cov_co:
         raise NotImplementedError
 
     if typing.TYPE_CHECKING:
         # note: Only define this for typing purposes so that we don't actually override anything.
-        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Out_cov:
-            ...
+        def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Out_cov_co: ...
 
         modules = torch.nn.Module.modules
         named_modules = torch.nn.Module.named_modules
@@ -96,14 +73,10 @@ class Module(Protocol[P, Out_cov]):
 
 class _DataclassMeta(type):
     def __subclasscheck__(self, subclass: type) -> bool:
-        return dataclasses.is_dataclass(subclass) and not dataclasses.is_dataclass(
-            type(subclass)
-        )
+        return dataclasses.is_dataclass(subclass) and not dataclasses.is_dataclass(type(subclass))
 
     def __instancecheck__(self, instance: Any) -> bool:
-        return dataclasses.is_dataclass(instance) and dataclasses.is_dataclass(
-            type(instance)
-        )
+        return dataclasses.is_dataclass(instance) and dataclasses.is_dataclass(type(instance))
 
 
 class Dataclass(metaclass=_DataclassMeta):
@@ -122,9 +95,7 @@ class DataclassInstance(Protocol):
 DataclassType = TypeVar("DataclassType", bound=DataclassInstance)
 
 
-def is_sequence_of(
-    object: Any, item_type: type[V] | tuple[type[V], ...]
-) -> TypeGuard[Sequence[V]]:
+def is_sequence_of[V](object: Any, item_type: type[V] | tuple[type[V], ...]) -> TypeGuard[Sequence[V]]:
     """Used to check (and tell the type checker) that `object` is a sequence of items of type
     `V`."""
     try:
@@ -133,71 +104,58 @@ def is_sequence_of(
         return False
 
 
-def is_list_of(
-    object: Any, item_type: type[V] | tuple[type[V], ...]
-) -> TypeGuard[list[V]]:
+def is_list_of[V](object: Any, item_type: type[V] | tuple[type[V], ...]) -> TypeGuard[list[V]]:
     """Used to check (and tell the type checker) that `object` is a list of items of this type."""
     return isinstance(object, list) and is_sequence_of(object, item_type)
 
 
-def jit(fn: Callable[P, Out]) -> Callable[P, Out]:
+def jit[**P, Out](fn: Callable[P, Out]) -> Callable[P, Out]:
     """Small type hint fix for jax's `jit` (preserves the signature of the callable)."""
     return jax.jit(fn)  # type: ignore
 
 
-In = TypeVar("In")
-In2 = TypeVar("In2")
-In3 = TypeVar("In3")
-Ts = TypeVarTuple("Ts")
-
-
 # argnums = 0
 @overload
-def value_and_grad(
+def value_and_grad[In, *Ts, Out](
     fn: Callable[[In, *Ts], Out],
     argnums: Literal[0] = 0,
     has_aux: bool = ...,
-) -> Callable[[In, *Ts], tuple[Out, In]]:
-    ...
+) -> Callable[[In, *Ts], tuple[Out, In]]: ...
 
 
 @overload
-def value_and_grad(
+def value_and_grad[In, In2, *Ts, Out](
     fn: Callable[[In, In2, *Ts], Out],
     argnums: tuple[Literal[0], Literal[1]],
     has_aux: bool = ...,
-) -> Callable[[In, *Ts], tuple[Out, tuple[In, In2]]]:
-    ...
+) -> Callable[[In, *Ts], tuple[Out, tuple[In, In2]]]: ...
 
 
 @overload
-def value_and_grad(
+def value_and_grad[In, In2, In3, *Ts, Out](
     fn: Callable[[In, In2, In3, *Ts], Out],
     argnums: tuple[Literal[0], Literal[1], Literal[2]],
     has_aux: bool = ...,
-) -> Callable[[In, *Ts], tuple[Out, tuple[In, In2, In3]]]:
-    ...
+) -> Callable[[In, *Ts], tuple[Out, tuple[In, In2, In3]]]: ...
 
 
 @overload
-def value_and_grad(
+def value_and_grad[In, *Ts, Out](
     fn: Callable[[In, *Ts], Out],
-    argnums: tuple[Literal[0], Unpack[tuple[int, ...]]],
+    argnums: tuple[Literal[0], *tuple[int, ...]],
     has_aux: bool = ...,
-) -> Callable[[In, Unpack[Ts]], tuple[Out, tuple[In, Unpack[Ts]]]]:
-    ...
+) -> Callable[[In, *Ts], tuple[Out, tuple[In, *Ts]]]: ...
 
 
 @overload
-def value_and_grad(
-    fn: Callable[[Unpack[Ts]], Out],
+def value_and_grad[*Ts, Out](
+    fn: Callable[[*Ts], Out],
     argnums: Sequence[int],
     has_aux: bool = ...,
-) -> Callable[[*Ts], tuple[Unpack[Ts]]]:
-    ...
+) -> Callable[[*Ts], tuple[*Ts]]: ...
 
 
-def value_and_grad(  # type: ignore
+def value_and_grad[Out](  # type: ignore
     fn: Callable[..., Out],
     argnums: int | Sequence[int] = 0,
     has_aux: bool = False,
@@ -206,12 +164,10 @@ def value_and_grad(  # type: ignore
     return jax.value_and_grad(fn, argnums=argnums, has_aux=has_aux)
 
 
-def chexify(
+def chexify[**P, Out](
     fn: Callable[P, Out],
     async_check: bool = True,
-    errors: FrozenSet[
-        jax.experimental.checkify.ErrorCategory
-    ] = chex.ChexifyChecks.user,
+    errors: frozenset[jax.experimental.checkify.ErrorCategory] = chex.ChexifyChecks.user,
 ) -> Callable[P, Out]:
-    # Fix `chex.chexify` so it preserves the function's signature.
+    """Fix `chex.chexify` so it preserves the function's signature."""
     return functools.wraps(fn)(chex.chexify(fn, async_check=async_check, errors=errors))  # type: ignore

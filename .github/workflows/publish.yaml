@@ -6,40 +6,40 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 on:
-  release:
-    types: [published]
-  workflow_dispatch:
+    release:
+        types: [published]
+    workflow_dispatch:
 jobs:
-  # https://docs.pypi.org/trusted-publishers/using-a-publisher/
-  publish:
-    strategy:
-      matrix:
-        python-version: [3.13]
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    environment: release
-    permissions:
-      # IMPORTANT: this permission is mandatory for trusted publishing
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
+    # https://docs.pypi.org/trusted-publishers/using-a-publisher/
+    publish:
+        strategy:
+            matrix:
+                python-version: [3.13]
+                os: [ubuntu-latest]
+        runs-on: ${{ matrix.os }}
+        environment: release
+        permissions:
+            # IMPORTANT: this permission is mandatory for trusted publishing
+            id-token: write
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
-          enable-cache: true
-          # https://github.com/astral-sh/setup-uv?tab=readme-ov-file#github-authentication-token
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-suffix: ${{ matrix.python-version }}
-      - name: Pin python-version ${{ matrix.python-version }}
-        run: uv python pin ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: uv sync --frozen
+            - name: Install the latest version of uv
+              uses: astral-sh/setup-uv@v3
+              with:
+                  version: "latest"
+                  enable-cache: true
+                  # https://github.com/astral-sh/setup-uv?tab=readme-ov-file#github-authentication-token
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+                  cache-suffix: ${{ matrix.python-version }}
+            - name: Pin python-version ${{ matrix.python-version }}
+              run: uv python pin ${{ matrix.python-version }}
+            - name: Install dependencies
+              run: uv sync
 
-      - name: Build package
-        run: |
-          uv build
+            - name: Build package
+              run: |
+                  uv build
 
-      - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+            - name: Publish package distributions to PyPI
+              uses: pypa/gh-action-pypi-publish@release/v1

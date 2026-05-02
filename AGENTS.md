@@ -1,61 +1,64 @@
-# `AGENTS.md`: Instructions for Agents
+# CLAUDE.md: Instructions for Claude Code
 
-This file defines conventions and best practices for Agents when handling code-related tasks.
+## Project Context
 
----
+See `PROJECT.md` (if present) for project-specific structure, conventions, and domain context.
 
 ## General Principles
 
-- **Strive for correctness and robustness**  
-  Write working, production-ready code. Favor clarity over cleverness.
+- **Correctness over cleverness.** Write working, production-ready code.
+- **Simplicity first.** Avoid unnecessary complexity. Don't propose adding complexity unless asked. Don't suggest large refactors during tuning or experimentation.
+- **Respect scope.** Limit edits to what's requested. Suggest broader improvements separately.
+- **Explicit incompleteness.** Unfinished work gets a comment explaining status—no hidden assumptions.
+- **Follow conventions.** Use established best practices; if none exist, define one and be consistent.
+- **Design for resilience.** Anticipate edge cases; handle unexpected inputs gracefully.
+- **Explicit errors.** Prefer clear error messages over silent failures.
+- **Sparse comments.** Comment only to clarify intent or non-obvious reasoning.
+- **Track dependencies.** Note any new external requirements clearly.
+- **Document minimally.** One-line summaries for modules, functions, and classes at minimum.
+- **Security awareness.** Avoid hardcoded secrets; flag potential security concerns.
 
-- **Handle incomplete work explicitly**  
-  If something cannot be finished, do not leave hidden dependencies or assumptions. Add a concise comment explaining the status.
+## Communication Style
 
-- **Follow conventions**  
-  Use established best practices where available. If no standard exists, define a consistent convention and follow it throughout.
+- **Lead with the answer.** Tables with deltas over prose. Compare old vs new with numbers.
+- **Be direct.** "50x worse", "catastrophic", "identical" — not hedged language.
+- **One suggestion, not a menu.** Suggest one (or few) next steps; let the user redirect.
+- **Understand WHY before fixing.** Explain causation, not just correlation.
+- **Don't second-guess data with theory.** The data is what it is.
+- **Momentum.** After logging results, immediately suggest the next experiment.
+- **Log before moving on.** Record results and decisions before starting the next thing.
 
-- **Design for resilience**  
-  Anticipate corner cases and handle unexpected inputs gracefully.
+## Autonomy and Asking
 
-- **Keep solutions simple**  
-  Avoid unnecessary complexity. Build incrementally, but structure code for future extensibility if needed.
+- **Front-load questions.** Ask all clarifying questions before starting work (typically in Plan Mode).
+- **Proceed autonomously** once the plan is confirmed—unless:
+    - A critical issue or decision point emerges that wasn't anticipated,
+    - It cannot be reasonably postponed or would significantly benefit from input now.
+- **When in doubt, ask.** A brief pause beats compounding a wrong assumption.
+- **Don't re-derive settled decisions.** Check existing logs, records, and memory first.
 
-- **Use comments sparingly**  
-  Only comment to clarify intent or non-obvious reasoning. Do not state the obvious.
+## Handling Existing Code
 
-- **Respect scope**  
-  When editing existing code, limit changes to the requested modifications. Suggestions for broader improvements are welcome, but must be presented separately.
+- **New code:** Follow these guidelines.
+- **Edits to existing code:** Follow these guidelines where possible. On conflict, prefer local consistency within the file.
+- **Re-read before editing** if a linter or formatter may have modified the file since your last read.
+- **Check for undefined variables and unused imports** before considering multi-file changes complete.
+- **Don't add docstrings/types to experimental scripts** unless asked.
 
-- **Ask when uncertain**  
-  If requirements are ambiguous, raise clarifying questions rather than assuming.
+## Important Constraints
 
-- **Error handling**  
-  Prefer explicit error messages over silent failures.
+- **Don't run builds or heavy commands** unless explicitly told to. Projects may target remote hardware (DGX, SLURM clusters).
+- **Save context early and often.** Long sessions hit context limits — dump important state defensively.
 
-- **Dependencies**  
-  Manage external dependencies appropriately; note any new requirements clearly.
+## Python
 
-- **Documentation**  
-  Provide at least minimal documentation for modules, functions, and classes. A concise one-line description of purpose is the minimum standard.
+- **Python 3.14+**, run with `python -O`, typically from `src/`.
+- **PyTorch** for tensor operations, differentiable programming, and ML tasks. Use numpy and JAX idioms correctly where applicable.
+- **Modern type hints.** Use native syntax: `tuple[int, float]`, `int | None`, `collections.abc` imports.
+- **Ruff** for formatting and linting. Use `~/ruffconfigs/default/ruff.toml` if available.
+- **Docstrings** (`"""..."""`) for all modules, functions, and classes.
+- Common libraries: `simple_parsing`, `safetensors`.
 
----
+## Environment
 
-## Python-Specific Guidelines
-
-- **Use PyTorch where appropriate**  
-  For vector/matrix/tensor operations, differentiable programming, and machine/deep learning tasks, prefer PyTorch.
-
-- **Add type annotations**  
-  Use Python’s modern, native type-hinting style. For example:  
-  - `tuple[int, float]` instead of `Tuple[int, float]`  
-  - `int | str | None` instead of `Union[int, str, None]`  
-  - Import abstract collection types from `collections.abc` instead of `typing` when applicable.  
-
-- **Code style and linting**  
-  Format and lint with [Ruff](https://github.com/astral-sh/ruff).  
-  If available, use the configuration file at `~/ruffconfigs/default/ruff.toml`.
-
-- **Documentation (Python-specific)**  
-  Use docstrings (`"""..."""`) to describe the purpose of modules, functions, and classes. At minimum, include a one-line summary.
-
+- **Shell:** Fish. Use `rm -f` not `rm` (interactive alias).

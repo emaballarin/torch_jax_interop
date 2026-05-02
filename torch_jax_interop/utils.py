@@ -19,9 +19,9 @@ def is_channels_first(shape: torch.Size | tuple[int, ...]) -> bool:
         return is_channels_first(shape[1:])
     if len(shape) != 3:
         return False
-    return (
-        shape[0] in (1, 3) and shape[1] not in {1, 3} and shape[2] not in {1, 3}
-    ) or (shape[0] < min(shape[1], shape[2]))
+    return (shape[0] in (1, 3) and shape[1] not in {1, 3} and shape[2] not in {1, 3}) or (
+        shape[0] < min(shape[1], shape[2])
+    )
 
 
 def is_channels_last(shape: torch.Size | tuple[int, ...]) -> bool:
@@ -29,9 +29,9 @@ def is_channels_last(shape: torch.Size | tuple[int, ...]) -> bool:
         return is_channels_last(shape[1:])
     if len(shape) != 3:
         return False
-    return (
-        shape[2] in (1, 3) and shape[0] not in {1, 3} and shape[1] not in {1, 3}
-    ) or (shape[2] < min(shape[0], shape[1]))
+    return (shape[2] in (1, 3) and shape[0] not in {1, 3} and shape[1] not in {1, 3}) or (
+        shape[2] < min(shape[0], shape[1])
+    )
 
 
 def to_channels_last(tensor: T) -> T:

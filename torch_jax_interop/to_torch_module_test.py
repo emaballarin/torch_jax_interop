@@ -1,7 +1,6 @@
-from typing import Callable
+from collections.abc import Callable
 
 import flax.linen
-import jax
 import jax.test_util
 import optax
 import pytest
@@ -10,12 +9,11 @@ from flax.typing import VariableDict
 from tensor_regression import TensorRegressionFixture
 
 from torch_jax_interop import jax_to_torch
-from torch_jax_interop.conftest import JaxCNN, TorchCNN
-from torch_jax_interop.to_torch_module import (
-    JaxPyTree,
-    WrappedJaxFunction,
-    WrappedJaxScalarFunction,
-)
+from torch_jax_interop.conftest import JaxCNN
+from torch_jax_interop.conftest import TorchCNN
+from torch_jax_interop.to_torch_module import JaxPyTree
+from torch_jax_interop.to_torch_module import WrappedJaxFunction
+from torch_jax_interop.to_torch_module import WrappedJaxScalarFunction
 from torch_jax_interop.types import jit
 
 # TODO: The regression check in this test occasionally fails? Unable to precisely
@@ -67,9 +65,7 @@ def test_use_jax_module_in_torch_graph(
         if use_jit:
             jax_function = jit(jax_function)
 
-        wrapped_jax_module = WrappedJaxFunction(
-            jax_function, jax_params, has_aux=has_aux, clone_params=clone_params
-        )
+        wrapped_jax_module = WrappedJaxFunction(jax_function, jax_params, has_aux=has_aux, clone_params=clone_params)
 
         logits = wrapped_jax_module(input)
 
@@ -78,9 +74,7 @@ def test_use_jax_module_in_torch_graph(
 
     else:
 
-        def jax_function_with_aux(
-            params: JaxPyTree, *inputs: jax.Array
-        ) -> tuple[jax.Array, JaxPyTree]:
+        def jax_function_with_aux(params: JaxPyTree, *inputs: jax.Array) -> tuple[jax.Array, JaxPyTree]:
             out = jax_network.apply(params, *inputs)
             assert isinstance(out, jax.Array)
             aux = {"mean": out.mean(), "max": out.max()}
@@ -248,9 +242,7 @@ def torch_and_jax_networks_with_same_params(
 
 @pytest.mark.xfail(reason="Params dont even lign up, its too hard to do atm.")
 def test_jax_and_torch_modules_have_same_forward_pass(
-    torch_and_jax_networks_with_same_params: tuple[
-        flax.linen.Module, VariableDict, torch.nn.Module
-    ],
+    torch_and_jax_networks_with_same_params: tuple[flax.linen.Module, VariableDict, torch.nn.Module],
     torch_input: torch.Tensor,
     jax_input: jax.Array,
 ):

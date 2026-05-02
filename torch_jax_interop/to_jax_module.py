@@ -3,30 +3,30 @@
 TODO: Maybe convert a torch.nn.Module into a flax.linen.Module?
 """
 
-from __future__ import annotations
-
 import copy
 import functools
+from collections.abc import Callable
+from collections.abc import Iterable
 from logging import getLogger as get_logger
-from typing import Callable, Concatenate, Iterable
+from typing import Concatenate
 
-import jax
 import jax.core
-import torch
 import torch.func
 import torch.utils._pytree
 
-from torch_jax_interop.to_jax import torch_to_jax
-from torch_jax_interop.types import Module
-
-from .types import JaxPyTree, Out_cov, P, TorchPyTree
+from .to_jax import torch_to_jax
+from .types import JaxPyTree
+from .types import Module
+from .types import Out_cov_co
+from .types import P
+from .types import TorchPyTree
 
 logger = get_logger(__name__)
 
 
 def make_functional(
-    module_with_state: Module[P, Out_cov], disable_autograd_tracking=False
-) -> tuple[Callable[Concatenate[Iterable[torch.Tensor], P], Out_cov], tuple[torch.Tensor, ...]]:
+    module_with_state: Module[P, Out_cov_co], disable_autograd_tracking=False
+) -> tuple[Callable[Concatenate[Iterable[torch.Tensor], P], Out_cov_co], tuple[torch.Tensor, ...]]:
     """Backward compatibility equivalent for `functorch.make_functional` in the new torch.func API.
 
     Adapted from https://gist.github.com/zou3519/7769506acc899d83ef1464e28f22e6cf as suggested by
@@ -68,14 +68,19 @@ def torch_module_to_jax(
     ```python
     import torch
     import jax
+
     torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    torch.manual_seed(0) # doctest:+ELLIPSIS
+    torch.manual_seed(0)  # doctest:+ELLIPSIS
     # <torch._C.Generator object at ...>
     model = torch.nn.Linear(3, 2, device=torch_device)
     wrapped_model, params = torch_module_to_jax(model)
+
+
     def loss_function(params, x: jax.Array, y: jax.Array) -> jax.Array:
         y_pred = wrapped_model(params, x)
         return jax.numpy.mean((y - y_pred) ** 2)
+
+
     x = jax.random.uniform(key=jax.random.key(0), shape=(1, 3))
     y = jax.random.uniform(key=jax.random.key(1), shape=(1, 1))
     loss, grad = jax.value_and_grad(loss_function)(params, x, y)
@@ -91,10 +96,16 @@ def torch_module_to_jax(
 
     ```python
     # here we reuse the same model as before:
-    wrapped_model, params = torch_module_to_jax(model, example_output=torch.zeros(1, 2, device=torch_device))
+    wrapped_model, params = torch_module_to_jax(
+        model, example_output=torch.zeros(1, 2, device=torch_device)
+    )
+
+
     def loss_function(params, x: jax.Array, y: jax.Array) -> jax.Array:
         y_pred = wrapped_model(params, x)
         return jax.numpy.mean((y - y_pred) ** 2)
+
+
     loss, grad = jax.jit(jax.value_and_grad(loss_function))(params, x, y)
     loss  # doctest: +SKIP
     # Array(0.5914371, dtype=float32)
@@ -115,42 +126,6 @@ def torch_module_to_jax(
     Returns
     -------
     the functional model and the model parameters (converted to jax arrays).
-
-    ## Example
-
-    >>> import torch
-    >>> import jax
-    >>> torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    >>> torch.manual_seed(0) # doctest:+ELLIPSIS
-    <torch._C.Generator object at ...>
-    >>> model = torch.nn.Linear(3, 2, device=torch_device)
-    >>> wrapped_model, params = torch_module_to_jax(model)
-    >>> def loss_function(params, x: jax.Array, y: jax.Array) -> jax.Array:
-    ...     y_pred = wrapped_model(params, x)
-    ...     return jax.numpy.mean((y - y_pred) ** 2)
-    >>> x = jax.random.uniform(key=jax.random.key(0), shape=(1, 3))
-    >>> y = jax.random.uniform(key=jax.random.key(1), shape=(1, 1))
-    >>> loss, grad = jax.value_and_grad(loss_function)(params, x, y)
-    >>> loss  # doctest: +SKIP
-    Array(0.05772376, dtype=float32)
-    >>> grad  # doctest: +SKIP
-    (Array([[-0.32541627, -0.10608128, -0.2133986 ],
-           [-0.04103044, -0.01337536, -0.02690658]], dtype=float32), Array([-0.33710665, -0.04250443], dtype=float32))
-
-    To use `jax.jit` on the model, you need to pass an example of an output so we can
-    tell the JIT compiler the output shapes and dtypes to expect:
-
-    >>> # here we reuse the same model as before:
-    >>> wrapped_model, params = torch_module_to_jax(model, example_output=torch.zeros(1, 2, device=torch_device))
-    >>> def loss_function(params, x: jax.Array, y: jax.Array) -> jax.Array:
-    ...     y_pred = wrapped_model(params, x)
-    ...     return jax.numpy.mean((y - y_pred) ** 2)
-    >>> loss, grad = jax.jit(jax.value_and_grad(loss_function))(params, x, y)
-    >>> loss  # doctest: +SKIP
-    Array(0.05772376, dtype=float32)
-    >>> grad  # doctest: +SKIP
-    (Array([[-0.32541627, -0.10608128, -0.2133986 ],
-           [-0.04103044, -0.01337536, -0.02690658]], dtype=float32), Array([-0.33710665, -0.04250443], dtype=float32))
     """
 
     if example_output is not None:
@@ -162,7 +137,7 @@ def torch_module_to_jax(
         if any(isinstance(v_i, jax.core.Tracer) for v_i in jax.tree.leaves(v)):
             # running inside JIT.
             return jax.pure_callback(
-                functools.partial(jax.tree.map, jax_to_torch), v, v, vmap_method='legacy_vectorized'
+                functools.partial(jax.tree.map, jax_to_torch), v, v, vmap_method="legacy_vectorized"
             )
         return jax.tree.map(jax_to_torch, v)
 
@@ -170,7 +145,7 @@ def torch_module_to_jax(
         if any(isinstance(v_i, jax.core.Tracer) for v_i in jax.tree.leaves(v)):
             # running inside JIT.
             return jax.pure_callback(
-                functools.partial(jax.tree.map, torch_to_jax), v, v, vmap_method='legacy_vectorized'
+                functools.partial(jax.tree.map, torch_to_jax), v, v, vmap_method="legacy_vectorized"
             )
         return jax.tree.map(torch_to_jax, v)
 
@@ -186,12 +161,8 @@ def torch_module_to_jax(
         # Convert the input data from PyTorch to JAX representations
         # Apply the model function to the input data.
         if example_output is None:
-            if any(
-                isinstance(v, jax.core.Tracer) for v in jax.tree.leaves((params, args, kwargs))
-            ):
-                raise RuntimeError(
-                    "You need to pass `example_output` in order to JIT the torch function!"
-                )
+            if any(isinstance(v, jax.core.Tracer) for v in jax.tree.leaves((params, args, kwargs))):
+                raise RuntimeError("You need to pass `example_output` in order to JIT the torch function!")
             params = j2t(params)
             args = j2t(args)
             kwargs = j2t(kwargs)
@@ -219,7 +190,7 @@ def torch_module_to_jax(
             params,
             *args,
             **kwargs,
-            vmap_method='legacy_vectorized',
+            vmap_method="legacy_vectorized",
         )
         # Convert the output data from JAX to PyTorch representations
         out = t2j(out)
@@ -242,9 +213,7 @@ def torch_module_to_jax(
                 torch_args = jax.tree.map(jax_to_torch, args)
                 torch_kwargs = jax.tree.map(jax_to_torch, kwargs)
                 torch_grads = jax.tree.map(jax_to_torch, grads)
-                _torch_out, torch_jvp_fn = torch.func.vjp(
-                    jitted_model_fn, torch_params, *torch_args, **torch_kwargs
-                )
+                _torch_out, torch_jvp_fn = torch.func.vjp(jitted_model_fn, torch_params, *torch_args, **torch_kwargs)
                 torch_in_grads = torch_jvp_fn(torch_grads)
                 return torch_in_grads
 
@@ -257,7 +226,7 @@ def torch_module_to_jax(
                 grads,
                 *args,
                 **kwargs,
-                vmap_method='legacy_vectorized',
+                vmap_method="legacy_vectorized",
             )
             in_grads = t2j(in_grads)
             return in_grads
@@ -266,9 +235,7 @@ def torch_module_to_jax(
         torch_args = jax.tree.map(jax_to_torch, args)
         torch_kwargs = jax.tree.map(jax_to_torch, kwargs)
         torch_grads = jax.tree.map(jax_to_torch, grads)
-        _torch_out, torch_jvp_fn = torch.func.vjp(
-            model_fn, torch_params, *torch_args, **torch_kwargs
-        )
+        _torch_out, torch_jvp_fn = torch.func.vjp(model_fn, torch_params, *torch_args, **torch_kwargs)
         torch_in_grads = torch_jvp_fn(torch_grads)
         in_grads = jax.tree.map(torch_to_jax, torch_in_grads)
         return in_grads

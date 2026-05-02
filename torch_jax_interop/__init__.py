@@ -8,9 +8,10 @@
 import jax
 import torch
 from torch_jax_interop import torch_to_jax, jax_to_torch
+
 tensors = {
-   "x": torch.randn(5),
-   "y": torch.arange(5),
+    "x": torch.randn(5),
+    "y": torch.arange(5),
 }
 
 jax_arrays = jax.tree.map(torch_to_jax, tensors)
@@ -31,6 +32,7 @@ print(torch_tensors)
 def some_wrapped_jax_function(x: jax.Array) -> jax.Array:
     return x + jax.numpy.ones_like(x)
 
+
 torch_input = torch.arange(5)
 torch_output = some_wrapped_jax_function(torch_input)
 print(torch_output)
@@ -43,6 +45,7 @@ print(torch_output)
 @torch_to_jax
 def some_wrapped_torch_function(x: torch.Tensor) -> torch.Tensor:
     return x + torch.ones_like(x)
+
 
 jax_input = jax.numpy.arange(5)
 jax_output = some_wrapped_torch_function(jax_input)
@@ -67,7 +70,9 @@ from torch_jax_interop import WrappedJaxFunction
 We can then wrap this jax function into a torch.nn.Module with learnable parameters:
 
 ```python
-module = WrappedJaxFunction(some_jax_function, jax_params=jax.random.normal(jax.random.key(0), (2, 1)))
+module = WrappedJaxFunction(
+    some_jax_function, jax_params=jax.random.normal(jax.random.key(0), (2, 1))
+)
 module = module.to("cpu")  # jax arrays are on GPU by default, moving them to CPU for this example.
 ```
 
@@ -92,8 +97,11 @@ This also works the same way for `flax.linen.Module`s:
 
 ```python
 import flax
+
+
 class JaxModule(flax.linen.Module):
     output_dims: int
+
     @flax.linen.compact
     def __call__(self, x: jax.Array):
         x = x.reshape((x.shape[0], -1))  # flatten
@@ -130,7 +138,8 @@ print({name: p.grad.shape for name, p in wrapped_jax_module.named_parameters()})
 from .to_jax import torch_to_jax
 from .to_jax_module import torch_module_to_jax
 from .to_torch import jax_to_torch
-from .to_torch_module import WrappedJaxFunction, WrappedJaxScalarFunction
+from .to_torch_module import WrappedJaxFunction
+from .to_torch_module import WrappedJaxScalarFunction
 
 __all__ = [
     "jax_to_torch",

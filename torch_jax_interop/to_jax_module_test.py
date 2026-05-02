@@ -5,10 +5,12 @@ import pytest
 import torch
 from tensor_regression import TensorRegressionFixture
 
-from torch_jax_interop import jax_to_torch, torch_to_jax
+from torch_jax_interop import jax_to_torch
+from torch_jax_interop import torch_to_jax
 from torch_jax_interop.to_jax_module import torch_module_to_jax
 from torch_jax_interop.to_torch import jax_to_torch_device
-from torch_jax_interop.types import jit, value_and_grad
+from torch_jax_interop.types import jit
+from torch_jax_interop.types import value_and_grad
 from torch_jax_interop.utils import to_channels_first
 
 
@@ -39,9 +41,7 @@ def test_torch_to_jax_nn_module(torch_device: torch.device):
     loss.backward()
     # expected_torch_output.backward(gradient=torch.ones_like(expected_torch_output))
     # Make a copy of the gradients so we can compare them later.
-    expected_torch_grads = {
-        k: v.grad.detach().clone() for k, v in torch_params.items() if v.grad is not None
-    }
+    expected_torch_grads = {k: v.grad.detach().clone() for k, v in torch_params.items() if v.grad is not None}
     torch_net.zero_grad(set_to_none=True)
 
     jax_input = torch_to_jax(torch_input)
@@ -90,9 +90,7 @@ def test_use_torch_module_in_jax_graph(
         example_out = torch_network(jax_to_torch(jax_input))
 
     flat_torch_params, params_treedef = jax.tree.flatten(torch_parameters)
-    wrapped_torch_network_fn, jax_params = torch_module_to_jax(
-        torch_network, example_output=example_out
-    )
+    wrapped_torch_network_fn, jax_params = torch_module_to_jax(torch_network, example_output=example_out)
 
     assert callable(wrapped_torch_network_fn)
     assert isinstance(jax_params, tuple) and all(isinstance(p, jax.Array) for p in jax_params)
@@ -119,9 +117,7 @@ def test_use_torch_module_in_jax_graph(
         shape=(batch_size,),
     )
 
-    def loss_fn(
-        params: tuple[jax.Array, ...], x: jax.Array, y: jax.Array
-    ) -> tuple[jax.Array, jax.Array]:
+    def loss_fn(params: tuple[jax.Array, ...], x: jax.Array, y: jax.Array) -> tuple[jax.Array, jax.Array]:
         x = to_channels_first(x)
         logits = wrapped_torch_network_fn(params, x)
         one_hot = jax.nn.one_hot(y, logits.shape[-1])

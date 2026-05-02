@@ -9,7 +9,8 @@ import torch
 from tensor_regression.stats import get_simple_attributes
 
 from torch_jax_interop import torch_to_jax
-from torch_jax_interop.to_torch import jax_to_torch, jax_to_torch_device
+from torch_jax_interop.to_torch import jax_to_torch
+from torch_jax_interop.to_torch import jax_to_torch_device
 from torch_jax_interop.utils import to_channels_last
 
 

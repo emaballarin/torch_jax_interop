@@ -1,17 +1,21 @@
-from __future__ import annotations
-
 import collections.abc
 import dataclasses
 import functools
 import logging
+from collections.abc import Callable
 from logging import getLogger as get_logger
-from typing import Any, Callable, overload
+from typing import Any
+from typing import overload
 
 import jax
 import torch
 from torch.utils import dlpack as torch_dlpack
 
-from .types import Dataclass, DataclassType, K, NestedDict, NestedMapping
+from .types import Dataclass
+from .types import DataclassType
+from .types import K
+from .types import NestedDict
+from .types import NestedMapping
 from .utils import log_once
 
 logger = get_logger(__name__)

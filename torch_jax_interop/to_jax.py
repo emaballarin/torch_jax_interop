@@ -1,27 +1,23 @@
-from __future__ import annotations
-
 import collections.abc
 import dataclasses
 import functools
 import logging
+from collections.abc import Callable
 from logging import getLogger as get_logger
-from typing import Any, Callable, overload
+from typing import Any
+from typing import overload
 
-import jax
 import jax.core
 import jax.errors
-import torch
 import torch.func
 import torch.utils._pytree
 from jax.dlpack import from_dlpack as jax_from_dlpack  # type: ignore
 
-from .types import (
-    Dataclass,
-    DataclassType,
-    K,
-    NestedDict,
-    NestedMapping,
-)
+from .types import Dataclass
+from .types import DataclassType
+from .types import K
+from .types import NestedDict
+from .types import NestedMapping
 from .utils import (
     log_once,
 )
@@ -122,8 +118,7 @@ def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
             log_once(
                 logger,
                 message=(
-                    f"Unable to convert CPU tensor of shape {tuple(value.shape)} "
-                    f"to jax.Array via DLPack: '{err}'"
+                    f"Unable to convert CPU tensor of shape {tuple(value.shape)} to jax.Array via DLPack: '{err}'"
                 ),
                 level=logging.WARNING,
             )
@@ -132,9 +127,7 @@ def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
 
     try:
         # Try using the "new" way to convert using from_dlpack directly
-        return jax_from_dlpack(
-            value, device=torch_to_jax_device(value.device), copy=None
-        )
+        return jax_from_dlpack(value, device=torch_to_jax_device(value.device), copy=None)
     except AssertionError as err:
         if not err.args[0].startswith("Unexpected XLA layout override"):
             raise
@@ -146,8 +139,7 @@ def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
             log_once(
                 logger,
                 message=(
-                    f"Unable to convert GPU tensor of shape {tuple(value.shape)} "
-                    f"to jax.Array via DLPack: '{err}'"
+                    f"Unable to convert GPU tensor of shape {tuple(value.shape)} to jax.Array via DLPack: '{err}'"
                 ),
                 level=logging.WARNING,
             )
@@ -155,10 +147,7 @@ def torch_to_jax_tensor(value: torch.Tensor) -> jax.Array:
     except jax.errors.JaxRuntimeError as err:
         log_once(
             logger,
-            message=(
-                f"Unable to convert GPU tensor of shape {tuple(value.shape)} "
-                f"to jax.Array via DLPack: '{err}'"
-            ),
+            message=(f"Unable to convert GPU tensor of shape {tuple(value.shape)} to jax.Array via DLPack: '{err}'"),
             level=logging.WARNING,
         )
         return _direct_conversion(value)

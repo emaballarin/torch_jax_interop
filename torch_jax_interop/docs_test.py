@@ -1,7 +1,8 @@
 import textwrap
 
 import pytest
-from mktestdocs.__main__ import check_codeblock, check_raw_string
+from mktestdocs.__main__ import check_codeblock
+from mktestdocs.__main__ import check_raw_string
 
 import torch_jax_interop
 from torch_jax_interop.to_jax_module import torch_module_to_jax
@@ -21,9 +22,7 @@ def patched_grab_code_blocks(docstring: str, lang="python"):
         lang: if not None, the language that is assigned to the codeblock
     """
     docstring_lines = docstring.splitlines()
-    docstring = (
-        docstring_lines[0] + "\n" + textwrap.dedent("\n".join(docstring_lines[1:]))
-    )
+    docstring = docstring_lines[0] + "\n" + textwrap.dedent("\n".join(docstring_lines[1:]))
     in_block = False
     block = ""
     codeblocks = []

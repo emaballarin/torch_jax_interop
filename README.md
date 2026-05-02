@@ -14,13 +14,13 @@ You can have it all: Sweet, sweet jit-ed functions and automatic differentiation
 This package contains a few utility functions to simplify interoperability between jax and torch: `torch_to_jax`, `jax_to_torch`, `WrappedJaxFunction`, `torch_module_to_jax`.
 
 This repository contains utilities for converting PyTorch Tensors to JAX arrays and vice versa.
-This conversion happens thanks the `dlpack` format, which is a common format for exchanging tensors between different deep learning frameworks. Crucially, this format allows for zero-copy * tensor sharing between PyTorch and JAX.
+This conversion happens thanks the `dlpack` format, which is a common format for exchanging tensors between different deep learning frameworks. Crucially, this format allows for zero-copy \* tensor sharing between PyTorch and JAX.
 
 > \* Note: For some torch tensors with specific memory layouts, for example channels-first image tensors, Jax will refuse to read the array from the dlpack, so we flatten and unflatten the data when converting, which might involve a copy.This is displayed as a warning at the moment on the command-line.
 
 ## Installation
 
-We would  **highly** recommend you use [uv](https://docs.astral.sh/uv/) to manage your project dependencies. This greatly helps avoid cuda dependency conflicts between PyTorch and Jax.
+We would **highly** recommend you use [uv](https://docs.astral.sh/uv/) to manage your project dependencies. This greatly helps avoid cuda dependency conflicts between PyTorch and Jax.
 
 ```bash
 uv add torch-jax-interop

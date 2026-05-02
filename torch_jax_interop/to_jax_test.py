@@ -10,7 +10,8 @@ import torch
 from pytest_benchmark.fixture import BenchmarkFixture
 from tensor_regression import TensorRegressionFixture
 
-from torch_jax_interop import jax_to_torch, torch_to_jax
+from torch_jax_interop import jax_to_torch
+from torch_jax_interop import torch_to_jax
 from torch_jax_interop.to_jax_module import torch_module_to_jax
 from torch_jax_interop.utils import log_once
 
@@ -145,9 +146,7 @@ def test_log_once_on_unsupported_value(unsupported_value: Any, caplog: pytest.Lo
     assert len(caplog.records) == 0
 
 
-def test_torch_params_dont_change(
-    torch_network: torch.nn.Module, tensor_regression: TensorRegressionFixture
-):
+def test_torch_params_dont_change(torch_network: torch.nn.Module, tensor_regression: TensorRegressionFixture):
     tensor_regression.check(
         dict(torch_network.named_parameters()),
         include_gpu_name_in_stats=False,

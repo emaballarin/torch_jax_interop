@@ -1,64 +1,64 @@
 default_language_version:
-  python: python3
+    python: python3
 
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
-    hooks:
-      - id: trailing-whitespace
-        require_serial: true
-      - id: end-of-file-fixer
-        require_serial: true
-      - id: check-added-large-files
-        require_serial: true
-        exclude: uv.lock
-      - id: check-ast
-        require_serial: true
-      - id: check-yaml
-        require_serial: true
-        exclude: "mkdocs.yml"
-      - id: debug-statements
-        require_serial: true
-      - id: detect-private-key
-        require_serial: true
-      - id: check-executables-have-shebangs
-        require_serial: true
-      - id: check-toml
-        require_serial: true
-      - id: check-case-conflict
-        require_serial: true
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v6.0.0
+      hooks:
+          - id: trailing-whitespace
+            require_serial: true
+          - id: end-of-file-fixer
+            require_serial: true
+          - id: check-added-large-files
+            require_serial: true
+            exclude: uv.lock
+          - id: check-ast
+            require_serial: true
+          - id: check-yaml
+            require_serial: true
+            exclude: "mkdocs.yml"
+          - id: debug-statements
+            require_serial: true
+          - id: detect-private-key
+            require_serial: true
+          - id: check-executables-have-shebangs
+            require_serial: true
+          - id: check-toml
+            require_serial: true
+          - id: check-case-conflict
+            require_serial: true
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.14.2"
-    hooks:
-      - id: ruff
-        args: ["--fix"]
-        require_serial: true
+    - repo: https://github.com/charliermarsh/ruff-pre-commit
+      rev: "v0.14.2"
+      hooks:
+          - id: ruff
+            args: ["--fix"]
+            require_serial: true
 
-  - repo: https://github.com/myint/docformatter
-    rev: v1.7.7
-    hooks:
-      - id: docformatter
-        language: python
-        args: [--in-place]
-        require_serial: true
+    - repo: https://github.com/myint/docformatter
+      rev: v1.7.7
+      hooks:
+          - id: docformatter
+            language: python
+            args: [--in-place]
+            require_serial: true
 
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v4.0.0-alpha.8
-    hooks:
-      - id: prettier
-        types: [yaml]
+    - repo: https://github.com/pre-commit/mirrors-prettier
+      rev: v4.0.0-alpha.8
+      hooks:
+          - id: prettier
+            types: [yaml]
 
-  - repo: https://github.com/kynan/nbstripout
-    rev: 0.8.1
-    hooks:
-      - id: nbstripout
-        require_serial: true
+    - repo: https://github.com/kynan/nbstripout
+      rev: 0.8.1
+      hooks:
+          - id: nbstripout
+            require_serial: true
 
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
-    hooks:
-      - id: codespell
-        args:
-          - --skip=logs/**,data/**
-        require_serial: true
+    - repo: https://github.com/codespell-project/codespell
+      rev: v2.4.1
+      hooks:
+          - id: codespell
+            args:
+                - --skip=logs/**,data/**
+            require_serial: true

@@ -1,7 +1,6 @@
 import logging
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 import jax.test_util
 import numpy
@@ -9,7 +8,8 @@ import pytest
 import torch
 from pytest_benchmark.fixture import BenchmarkFixture
 
-from torch_jax_interop import jax_to_torch, torch_to_jax
+from torch_jax_interop import jax_to_torch
+from torch_jax_interop import torch_to_jax
 
 
 @pytest.mark.parametrize(
